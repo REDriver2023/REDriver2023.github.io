@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale= 0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>REDriver2023 Issues</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.css" rel="stylesheet">
+
+    <!-- Custom CSS for the '3 Col Portfolio' Template -->
+    <link href="css/3-col-portfolio.css" rel="stylesheet">
+  </head>
+
+  <body>
+
+    <nav class="navbar navbar-fixed-top navbar-inverse" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <!-- <a class="navbar-brand" href="http://startbootstrap.com">Start Bootstrap</a> -->
+          <a class="navbar-brand" href="http://REDriver2023.github.io">REDriver2023</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse navbar-ex1-collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="index.html">Source Code</a></li>
+            <li><a href="specifications.html">Specifications</a></li>
+            <li><a href="seeds.html">Seeds of the Fuzzing Algorithm</a></li>
+          </ul>
+        </div><!-- /.navbar-collapse -->
+      </div><!-- /.container -->
+    </nav>
+
+    <div class="container">
+
+      <div class="row">
+
+        <div class="col-lg-12">
+          <h1 class="page-header">REDriver <small>Specifications</small></h1>
+        </div>
+
+      </div>
+
+      <div class="row">
+        <p>
+          In this part, we provide all the specifications to describe traffic laws. The original text can be found on the <a href="http://www.gov.cn/gongbao/content/2004/content_62772.htm">official website</a>.
+        </p>
+
+        <p>
+           The article 38. The translation of the original text is:
+
+           Article 38: Motor vehicle signal lights and non-motor vehicle signal lights indicate:
+          (1) When the green light is on, vehicles are allowed to pass, but turning vehicles shall not hinder the passing of straight vehicles and pedestrians that are being released.
+          (2) When the yellow light is on, vehicles that have crossed the stop line can continue to pass;
+          (3) When the red light is on, vehicles are prohibited from passing. When the red light is on, vehicles turning right can pass without hindering the passage of vehicles or pedestrians.
+        </p>
+
+        <pre>
+          <code>
+//law38
+//Green Lights
+law38_sub1_1 = (trafficLightAhead.color == green) & (stoplineAhead(2) | junctionAhead(2)) & ~PriorityNPCAhead & ~PriorityPedsAhead;
+law38_sub1_2 = F[0,2](speed > 0.5);
+law38_sub1 = G (law38_sub1_1 -> law38_sub1_2); 
+//Yellow Lights
+law38_sub2_1 = ((trafficLightAhead.color == yellow) & (stoplineAhead(0) | currentLane.number == 0)) -> (F[0,2] (speed > 0.5));
+law38_sub2_2 = ((trafficLightAhead.color == yellow) & stoplineAhead(3.5) & ~stoplineAhead(0.5) & currentLane.number > 0) -> (F[0,3] (speed < 0.5));
+law38_sub2 = G (law38_sub2_1 & law38_sub2_2); 
+//Red LightS
+law38_sub3_1 = ((trafficLightAhead.color == red) & (stoplineAhead(2) | junctionAhead(2)) & ~(direction == right)) -> (F[0,3] (speed < 0.5));
+law38_sub3_2 = ((trafficLightAhead.color == red) & (stoplineAhead(2) | junctionAhead(2)) & direction == right & ~PriorityNPCAhead & ~PriorityPedsAhead) -> (F[0,2] (speed > 0.5));
+law38_sub3 = G (law38_sub3_1 & law38_sub3_2); 
+law38 = law38_sub1 & law38_sub2 & law38_sub3;
+          </code>
+        </pre>
+
+        <p>
+           The article 44. The translation of the original text is:
+           Article 44:  Where there are two or more motorized lanes in the same direction on the road, the left side is the fast lane and the right side is the slow lane. Motor vehicles traveling in a fast lane shall drive at the speed specified in the fast lane, and those that have not reached the speed specified in the fast lane shall drive in a slow lane. Motorcycles should drive in the rightmost lane. If there are traffic signs indicating the driving speed, drive at the indicated driving speed. When a motor vehicle in a slow lane overtakes the preceding vehicle, it can borrow the fast lane to drive.
+           Where there are two or more motor vehicle lanes in the same direction on the road, the motor vehicle that changes lanes shall not affect the normal driving of the motor vehicle in the relevant lane.
+        </p>
+
+        <pre>
+          <code>
+//law44
+law44_sub1 = currentLane.number >= 2;
+law44_sub2 = (speed >= speedLimit.lowerLimit) & (speed <= speedLimit.upperLimit);
+law44_sub3 = isChangingLane & currentLane.number >= 2;
+law44_sub4 = G(law44_sub1 -> law44_sub2);
+law44_sub5 = G(law44_sub3 -> ~PriorityNPCAhead);
+law44 = law44_sub4 & law44_sub5;
+          </code>
+        </pre>
+
+        <p>
+           The article 45. The translation of the original text is:
+           Article 45: Motor vehicles must not exceed the speed indicated by the speed limit signs and markings on the road. On roads without speed limit signs and markings, motor vehicles shall not exceed the following maximum speeds.
+            (1) For roads without a road centerline, urban roads are 30 kilometers per hour, and highways are 40 kilometers per hour;
+            (2) For roads with only one motor vehicle lane in the same direction, 50 kilometers per hour for urban roads and 70 kilometers per hour for highways.
+        </p>
+
+        <pre>
+          <code>
+//law45
+law45 = G( speed >= speedLimit.lowerLimit & speed <= speedLimit.upperLimit);
+          </code>
+        </pre>     
+        <p>
+           The article 46. The translation of the original text is:
+           Article 46: When a motor vehicle encounters one of the following conditions, the maximum speed shall not exceed 30 kilometers per hour, and the maximum speed of tractors, battery vehicles, and wheeled special machinery vehicles shall not exceed 15 kilometers per hour:
+    (1) When entering or leaving a non-motorized vehicle lane, passing through a railway crossing, a sharp curve, a narrow road, or a narrow bridge;
+    (2) When turning around, turning, or descending steep slopes;
+    (3) In case of fog, rain, snow, sand dust, hail, the visibility is within 50 meters;
+    (4) when driving on icy and muddy roads;
+    (5) When towing a malfunctioning motor vehicle.
+        </p>
+
+        <pre>
+          <code>
+//law46
+law_46_sub2 = G( (direction == left | direction == right | isTurningAround) -> (speed <= 30 ));
+law_46_sub3 = G( (rain >= 0.5 | fog >= 0.5 | snow >=0.5 | visibility <= 50 ) -> (speed <= 30));
+law46 = (law_46_sub2) & (law_46_sub3);
+          </code>
+        </pre>
+        <p>
+           The article 47. The translation of the original text is:
+           Article 47: When a motor vehicle is overtaking, it shall turn on the left turn signal in advance, change the use of far and low beam lights, or honk the horn. On a road with no center line of the road or with only one motor vehicle lane in the same direction, when the vehicle in front meets the vehicle behind and sends an overtaking signal, if conditions permit, the speed should be reduced and the road should be made to the right. After confirming that there is a sufficient safety distance, the following vehicle should pass from the left side of the vehicle in front, and after pulling the necessary safety distance from the overtaken vehicle, turn on the right turn signal and drive back to the original lane.
+        </p>
+
+        <pre>
+          <code>
+//law47
+law47_sub1 = (turnSignal == left) & ((F[-1,2](hornOn)) | ((highBeamOn & (highBeamOn -> (F[0, 2](lowBeamOn)) ) ) | (lowBeamOn & (lowBeamOn -> (F[0, 2](highBeamOn)) ) ))) & (F[0, 10]( (turnSignal == right) & (((isChangingLane) -> (NearestNPC(5))) & (isChangingLane) ) ));
+law47 = G(isOverTaking -> law47_sub1);
+          </code>
+        </pre>
+        <p>
+           The article 50. The translation of the original text is:
+           Article 50: When a motor vehicle is reversing, the situation behind the vehicle shall be ascertained and the vehicle shall be reversed after confirming that it is safe. Do not reverse in railway crossings, intersections, one-way roads, bridges, sharp bends, steep slopes, or tunnels.
+        </p>
+
+        <pre>
+          <code>
+//law50
+law50 = G( (PriorityNPCAhead | crosswalkAhead(2)) -> ~(gear == 2) ); 
+          </code>
+        </pre>
+        <p>
+           The article 51. The translation of the original text is:
+           Article 51: Motor vehicles passing through intersections controlled by traffic lights shall pass in accordance with the following regulations:
+    (1) At an intersection with a guide lane, drive into the guide lane according to the required direction of travel;
+    (2) Those who are preparing to enter the roundabout let motor vehicles already in the intersection go ahead;
+    (3) When turning to the left, turn to the left of the center of the intersection. Turn on the turn signal when turning, and turn on the low beam when driving at night;
+    (4) Pass in turn when encountering a release signal;
+    (5) When the stop signal is encountered, stop outside the stop line in turn. If there is no stop line, stop outside the intersection;
+    (6) When turning right when there is a car in the same lane waiting for the release signal, stop and wait in turn;
+    (7) At intersections with no direction indicator lights, turning motor vehicles let straight vehicles and pedestrians go first.
+    Right-turning motor vehicles traveling in the opposite direction let left-turning vehicles go first.
+        </p>
+
+        <pre>
+          <code>
+//law51
+//turn_left
+law51_sub3_1 =(trafficLightAhead.color == green & direction == left & Time <= 20:00 & Time >= 7:00) -> (turnSignal == left);
+law51_sub3_2 =(trafficLightAhead.color == green & direction == left & (Time >= 20:00 | Time <= 7:00)) -> (turnSignal == left & lowBeamOn);
+law51_sub3 = G(law51_sub3_1 & law51_sub3_2);  
+//go_in_line_at_green
+law51_sub4_1 = trafficLightAhead.color == green & (~NPCAhead(8) | (( NPCAhead(8) -> F[0,2](NPCAhead.speed > 0.5)  ) & NPCAhead(8)));
+law51_sub4_2 = (F[0, 3](speed > 0.5)) & ~NPCAhead(0.5);
+law51_sub4 = G(law51_sub4_1 -> law51_sub4_2);
+//stop_in_line_at_red
+law51_sub5_1 = trafficLightAhead.color == red & (stoplineAhead(2) | junctionAhead(2) | NPCAhead(0.5));
+law51_sub5_2 = F[0, 2](speed < 0.5);
+law51_sub5 = G(law51_sub5_1 -> law51_sub5_2);  
+//tuen_right_stop_in_line_at_red
+law51_sub6 = G((direction == right & NPCAhead(2) & (F[0, 2](NPCAhead.speed < 0.5)) ) -> F[0, 3] (speed < 0.5));
+//priority_for_straight
+law51_sub7 = G(((direction == right | direction == left) & (PriorityNPCAhead | PriorityPedsAhead)) -> F[0, 2] (speed < 0.5));
+law51 = law51_sub3 & law51_sub4 & law51_sub5 & law51_sub6 & law51_sub7;
+          </code>
+        </pre>
+        <p>
+           The article 52. The translation of the original text is:
+           Article 52: When a motor vehicle passes through an intersection that is not controlled by traffic lights or commanded by traffic police, in addition to complying with the provisions of Article 51 (2) and (3), it shall also comply with the following provisions:
+    (1) If there are traffic signs and markings, let the party with priority to go first;
+    (2) If there is no traffic sign or marking control, stop and look at the intersection before entering the intersection and let the traffic on the right road go first;
+    (3) Turning motor vehicles let straight vehicles go first;
+    (4) A right-turning motor vehicle driving in the opposite direction will let the left-turning vehicle go first.
+        </p>
+
+        <pre>
+          <code>
+//law52
+law52 = G((signalAhead == 0 & (PriorityNPCAhead | PriorityPedsAhead) & junctionAhead(1)) -> F[0, 2] (speed < 0.5));
+          </code>
+        </pre>
+        <p>
+           The article 53. The translation of the original text is:
+           Article 53: 
+    (1) When a motor vehicle encounters a traffic jam at an intersection ahead, it shall stop and wait in turn outside the intersection and shall not enter the intersection.
+    (2) When a motor vehicle encounters a motor vehicle in front of the vehicle parked in a queue or is driving slowly, it shall be queued in sequence, and shall not pass through or overtake from both sides of the vehicle in front and shall not park and wait in the area of crosswalks or mesh lines.
+    (3) When a motor vehicle is at an intersection or road section with reduced lanes, if there is a motor vehicle in front of the vehicle parked in a queue or driving slowly, one vehicle in each lane shall alternately drive into the intersection or road section with reduced lanes.
+        </p>
+
+        <pre>
+          <code>
+//law53
+law53 = G((isTrafficJam & (NPCAhead.speed < 0.5 | NPCAhead(0.5) | junctionAhead(1) ))-> F[0, 2] (speed < 0.5));
+          </code>
+        </pre>
+
+        <p>
+           The article 57. The translation of the original text is:
+    (1) When turning left, changing lanes to the left, preparing to overtake, leaving a parking place or turning around, the left turn signal shall be turned on in advance;
+    (2) When turning right, changing lanes to the right, driving back to the original lane after overtaking, or stopping by the side of the road, the right turn signal should be turned on in advance.
+        </p>
+
+        <pre>
+          <code>
+//law57
+law57_sub1 = G(direction == left ->  turnSignal == left);
+law57_sub2 = G(direction == right ->  turnSignal == right);
+law57 = law57_sub1 & law57_sub2;
+          </code>
+        </pre>
+
+        <p>
+           The article 58. The translation of the original text is:
+           Article 58: When a motor vehicle is driving at night without streetlights, poor lighting, or low visibility conditions such as fog, rain, snow, sand, hail, etc., it shall turn on the headlights, position lights and rear position lights, but when the vehicle behind and the vehicle in front driving in the same direction are driving at close distances, the high beam shall not be used. When a motor vehicle is driving in a foggy day, the fog lights and hazard warning flashes should be turned on.
+        </p>
+
+        <pre>
+          <code>
+//law58
+law58_sub1_1 = (~streetLightOn & (Time >= 20:00 | Time <= 7:00) ) | (rain >= 0.5 | fog >= 0.5 | snow >= 0.5);
+law58_sub1 = (law58_sub1_1 & ~NPCAhead(10))-> highBeamOn;
+law58_sub2 =  NPCAhead(10) -> ~highBeamOn;
+law58_sub3 = fog >= 0.5 -> (fogLightOn & warningFlashOn);
+law58 = G(law58_sub1 & law58_sub2 & law58_sub3);
+          </code>
+        </pre>
+        <p>
+           The article 59. The translation of the original text is:
+           Article 59: When a vehicle passes sharp bends, slopes, arch bridges, crosswalks or intersections without traffic lights at night, it shall alternately use far and near lights.
+            When a motor vehicle is approaching sharp bends, the top of a ramp and other road sections that affect the safe sight distance, as well as overtaking or in an emergency, the vehicle should slow down and honk the horn. 
+        </p>
+
+        <pre>
+          <code>
+//law59
+law59_sub1 = (crosswalkAhead(5) | (signalAhead == 0 & junctionAhead(1)) ) & (Time >= 20:00 | Time <= 7:00);
+law59_sub2 = F[0,3](highBeamOn & (highBeamOn -> F[0,3](lowBeamOn)) ) | F[0,3](lowBeamOn & (lowBeamOn -> F[0,3](highBeamOn)) );
+law59 = G(law59_sub1 ->  law59_sub2);
+          </code>
+        </pre>
+        <p>
+           The article 62. The translation of the original text is:
+           Article 62: Driving a motor vehicle shall not have the following behaviours:
+    (4) Turn off the engine or slide in neutral when descending a steep slope;
+    (8) Honk horns in areas or road sections where honking is prohibited.
+        </p>
+
+        <pre>
+          <code>
+//law62
+law62 = G (~honkingAllowed ->  ~hornOn);
+          </code>
+        </pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      </div>
+
+      <hr>
+
+<!--       <div class="row text-center">
+        
+        <div class="col-lg-12">
+          <ul class="pagination">
+            <li><a href="index.html">&laquo;</a></li>
+            <li class="active"><a href="index.html">1</a></li>
+            <li><a href="safety2.html">2</a></li>
+            <li><a href="safety3.html">3</a></li>
+            <li><a href="safety4.html">4</a></li>
+            <li><a href="safety5.html">5</a></li>
+            <li><a href="safety2.html">&raquo;</a></li>
+          </ul>        
+        </div>
+
+      </div> -->
+
+    </div>
+    <!-- /.container -->
+
+<!--     <div class="container">
+
+      <hr>
+
+      <footer>
+        <div class="row">
+          <div class="col-lg-12">
+            <p>Copyright &copy; Company <span id="getCurrentDate"></span></p>
+          </div>
+        </div>
+      </footer>
+      
+    </div> --> <!-- /.container -->
+
+    <!-- JavaScript -->
+    <script src="js/jquery- 10.2.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <script type="text/javascript">
+      var dt = new Date();
+      document.getElementById('getCurrentDate').innerHTML = dt.getFullYear();
+    </script>
+  </body>
+
+</html>
